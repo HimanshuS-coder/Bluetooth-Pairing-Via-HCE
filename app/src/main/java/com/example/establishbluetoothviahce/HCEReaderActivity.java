@@ -75,7 +75,6 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         bluetoothPermission = new BluetoothPermission(bluetoothAdapter, this);
         bluetoothPermission.enableBluetooth();
-        Log.d("Bluetooth address of Reader ", bluetoothAdapter.getAddress());
 
         // Manage Storage Permissions
         storagePermission = new StoragePermission(getApplicationContext(),this);
@@ -101,7 +100,7 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         );
 
         Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300); // 5 minutes
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
         discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
 
 
@@ -110,6 +109,7 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
 
     // Create a BroadcastReceiver for ACTION_FOUND
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
         public void onReceive(Context context, Intent intent) {
             Log.d("inside Broadcast","started onReceive method");
             String action = intent.getAction();
@@ -117,12 +117,17 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                 Log.d("inside Broadcast","inside if");
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 Log.d("inside Broadcast","receive device");
-                @SuppressLint("MissingPermission") String deviceName = device.getName();
-                String deviceAddress = device.getAddress();
-                Log.d(TAG, "Device found: " + deviceName + " [" + deviceAddress + "]");
-                // Pair with the device
-                Log.d("inside Broadcast","going to pairDevice");
-                pairDevice(device);
+                if (device != null && device.getName().equals(bluetoothDeviceName)) {
+                    // bluetoothAdapter.cancelDiscovery();
+                    Log.d("inside Broadcast","going to pairDevice");
+                    pairDevice(device);
+                }
+//                @SuppressLint("MissingPermission") String deviceName = device.getName();
+//                String deviceAddress = device.getAddress();
+//                Log.d(TAG, "Device found: " + deviceName + " [" + deviceAddress + "]");
+//                // Pair with the device
+//                Log.d("inside Broadcast","going to pairDevice");
+//                pairDevice(device);
             }
         }
     };
@@ -130,8 +135,8 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
     private void pairDevice(BluetoothDevice device) {
         try {
             Log.d("inside Pair Device","just started");
-            Method method = device.getClass().getMethod("createBond", (Class[]) null);
-            method.invoke(device, (Object[]) null);
+//            Method method = device.getClass().getMethod("createBond", (Class[]) null);
+//            method.invoke(device, (Object[]) null);
             Log.d("inside Broadcast","started onReceive method");
             connectToBluetoothDevice(device);
         } catch (Exception e) {
