@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">establishBluetoothViaHCE</string>
+    <string name="servicedesc">Establish Bluetooth Connection</string>
+    <string name="aiddescription">Application ID</string>
+</resources>
