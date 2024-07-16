@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -42,14 +43,11 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
 
     private static final String TAG = "HCEReaderActivity";
     private static final UUID MY_UUID = UUID.fromString("e8e10f95-1a70-4b27-9ccf-02010264e9c8");
-    private NfcAdapter nfcAdapter;
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothPermission bluetoothPermission;
     private StoragePermission storagePermission;
-    private static final int REQUEST_ENABLE_BT = 1;
-    private static final int REQUEST_PERMISSIONS = 2;
-    String bluetoothAddress;
-    String bluetoothDeviceName = "Galaxy Tab Active2";
+    BroadcastReceiver receiver;
+    private ActivityResultLauncher<Intent> discoverableIntentLauncher;
 
     @SuppressLint("MissingPermission")
     @Override
@@ -80,68 +78,71 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         storagePermission = new StoragePermission(getApplicationContext(),this);
         storagePermission.isStoragePermissionGranted();
 
-        // Start device discovery
-        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-        Log.d("Start Intent for Bluetooth","Bluetooth discovery about to start");
-        registerReceiver(receiver, filter);
-        Log.d("Start Intent for Bluetooth","Register receiver");
-
         // Make this device discoverable (using Activity Result API)
-        ActivityResultLauncher<Intent> discoverableIntentLauncher = registerForActivityResult(
+        discoverableIntentLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == Activity.RESULT_CANCELED) {
                         Toast.makeText(this, "Bluetooth discoverability not enabled", Toast.LENGTH_SHORT).show();
                     } else {
+                        @SuppressLint("MissingPermission")
                         boolean isDiscovering = bluetoothAdapter.startDiscovery();
                         Log.d("Bluetooth Discovery", "Discovery started: " + isDiscovering);
                     }
                 }
         );
 
+    }
+
+    private void pairDevice(String deviceName) {
+
+
         Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
         discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
         discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
 
-
-
-    }
-
-    // Create a BroadcastReceiver for ACTION_FOUND
-    private final BroadcastReceiver receiver = new BroadcastReceiver() {
-        @SuppressLint("MissingPermission")
-        public void onReceive(Context context, Intent intent) {
-            Log.d("inside Broadcast","started onReceive method");
-            String action = intent.getAction();
-            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                Log.d("inside Broadcast","inside if");
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                Log.d("inside Broadcast","receive device");
-                if (device != null && device.getName().equals(bluetoothDeviceName)) {
-                    // bluetoothAdapter.cancelDiscovery();
-                    Log.d("inside Broadcast","going to pairDevice");
-                    pairDevice(device);
+        // Create a BroadcastReceiver for ACTION_FOUND
+        receiver = new BroadcastReceiver() {
+            @SuppressLint("MissingPermission")
+            public void onReceive(Context context, Intent intent) {
+                Log.d("inside Broadcast","started onReceive method");
+                String action = intent.getAction();
+                if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                    Log.d("inside Broadcast","inside if");
+                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                    Log.d("inside Broadcast","receive device");
+//                    assert device != null;
+//                    Log.d("Discover Bluetooth Device",device.getName());
+//                    if (device.getName().equals(deviceName)) {
+//                        // bluetoothAdapter.cancelDiscovery();
+//                        Log.d("inside Broadcast","going to pairDevice");
+//                        connectToBluetoothDevice(device);
+//                    }
+                    if (device != null) {
+                        String discoverDeviceName = device.getName();
+                        if (discoverDeviceName != null) {
+                            Log.d("Discover Bluetooth Device", discoverDeviceName);
+                            if (discoverDeviceName.equals(deviceName)) {
+                                Log.d("inside Broadcast", "going to pairDevice");
+                                connectToBluetoothDevice(device);
+                            }
+                        } else {
+                            Log.d("Discover Bluetooth Device", "Unnamed device found");
+                        }
+                    }
                 }
-//                @SuppressLint("MissingPermission") String deviceName = device.getName();
-//                String deviceAddress = device.getAddress();
-//                Log.d(TAG, "Device found: " + deviceName + " [" + deviceAddress + "]");
-//                // Pair with the device
-//                Log.d("inside Broadcast","going to pairDevice");
-//                pairDevice(device);
-            }
-        }
-    };
 
-    private void pairDevice(BluetoothDevice device) {
-        try {
-            Log.d("inside Pair Device","just started");
-//            Method method = device.getClass().getMethod("createBond", (Class[]) null);
-//            method.invoke(device, (Object[]) null);
-            Log.d("inside Broadcast","started onReceive method");
-            connectToBluetoothDevice(device);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            }
+        };
+
+        // These lines should be placed below BroadCast Receiver so that after discovering first device it again run these lines and after discover more devices
+        // Start device discovery
+        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        Log.d("Start Intent for Bluetooth","Bluetooth discovery about to start");
+        registerReceiver(receiver, filter);
+        Log.d("Start Intent for Bluetooth","Register receiver");
+
+
     }
 
 
@@ -180,11 +181,9 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                     responseApdu = isoDep.transceive(Utils.BLUETOOTH_REQUEST);
 
                 }
-                bluetoothAddress = new String(responseApdu);
-                Log.d("Address received",bluetoothAddress);
-//                checkBluetoothPermissions();
-                //connectToBluetoothDevice(bluetoothAddress);
-
+                String deviceName = new String(responseApdu, StandardCharsets.UTF_8);
+                Log.d("Device Name received",deviceName);
+                pairDevice(deviceName);
 
 
             } catch (Exception e) {
@@ -231,19 +230,6 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
             BluetoothSocket tmp = null;
 
             try {
-//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-//                    if (checkSelfPermission(android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
-//                            checkSelfPermission(android.Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED ||
-//                            checkSelfPermission(android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
-//                            checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-//                        checkBluetoothPermissions();
-//                    }
-//                } else{
-//                    if (checkSelfPermission(android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
-//                            checkSelfPermission(android.Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-//                        checkBluetoothPermissions();
-//                    }
-//                }
                 Log.d("Inside Connect Thread ","Got inside");
                 tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
             } catch (Exception e) {
@@ -292,7 +278,7 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
 
                     Log.d("Manage Connected SOcket","got socket outputstream");
 
-                    File file = new File("/storage/emulated/0/Download/test.pdf");
+                    File file = new File("/storage/emulated/0/Download/dummy.pdf");
 
                     Log.d("Manage Connected SOcket","select file");
 
@@ -307,7 +293,7 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
 
                     Log.d("Manage Connected SOcket","file input stream");
 
-                    byte[] buffer = new byte[1024*64];
+                    byte[] buffer = new byte[1024*2];
                     int bytesRead;
 
                     Log.d("Manage Connected SOcket","going to write bytes");

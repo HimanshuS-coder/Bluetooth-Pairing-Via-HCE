@@ -82,7 +82,7 @@ public class HCECardActivity extends AppCompatActivity {
         );
 
         Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300); // 5 minutes
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
         discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
 
 
