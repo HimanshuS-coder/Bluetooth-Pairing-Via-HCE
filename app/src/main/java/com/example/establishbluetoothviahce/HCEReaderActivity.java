@@ -37,6 +37,7 @@ import com.example.establishbluetoothviahce.Connection.BluetoothPermission;
 import com.example.establishbluetoothviahce.Connection.NFC_Utils;
 import com.example.establishbluetoothviahce.Connection.StoragePermission;
 
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -402,6 +403,12 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                     byte[] buffer = new byte[1024*2];
                     int bytesRead;
 
+                    // Sending the total file size so as to track the received progress on the other side
+                    DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
+                    dataOutputStream.writeInt((int) file.length());
+                    dataOutputStream.flush();
+                    // **************************************
+
                     while ((bytesRead = fileInputStream.read(buffer)) != -1) {
                         Log.d("Manage Connected Socket", "Writing bytes: " + bytesRead);
                         outputStream.write(buffer, 0, bytesRead);
@@ -443,11 +450,8 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                         //if (socket != null) socket.close();
                     } catch (IOException e) {
                         e.printStackTrace();
-                    } catch (InvocationTargetException e) {
-                        throw new RuntimeException(e);
-                    } catch (NoSuchMethodException e) {
-                        throw new RuntimeException(e);
-                    } catch (IllegalAccessException e) {
+                    } catch (InvocationTargetException | NoSuchMethodException |
+                             IllegalAccessException e) {
                         throw new RuntimeException(e);
                     }
                 }

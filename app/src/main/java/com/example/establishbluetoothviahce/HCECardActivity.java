@@ -12,6 +12,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -24,6 +25,9 @@ import com.example.establishbluetoothviahce.Connection.BluetoothPermission;
 import com.example.establishbluetoothviahce.Connection.NFC_Utils;
 import com.example.establishbluetoothviahce.Connection.StoragePermission;
 
+import org.w3c.dom.Text;
+
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -43,6 +47,7 @@ public class HCECardActivity extends AppCompatActivity {
     private StoragePermission storagePermission;
     private AcceptThread acceptThread;
     private ActivityResultLauncher<Intent> discoverableIntentLauncher;
+    TextView progressText;
 
 
     @SuppressLint("MissingPermission")
@@ -51,6 +56,9 @@ public class HCECardActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_hcecard);
+
+        // Fetching Progress Text
+        progressText = findViewById(R.id.progressText);
 
         // Manage NFC
         NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
@@ -222,6 +230,12 @@ public class HCECardActivity extends AppCompatActivity {
                     byte[] buffer = new byte[1024*64];
                     int bytesRead;
 
+                    // Tracking the Progress
+                    DataInputStream dataInputStream = new DataInputStream(inputStream);
+                    int fileSize = dataInputStream.readInt(); // Read file size as an integer
+                    Log.d("Received File Size","Expected FIle size: "+fileSize);
+                    long totalBytesRead = 0;
+
                     Log.d("Manage Connected SOcket","going to read inputstream");
 
 //                    while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -231,6 +245,15 @@ public class HCECardActivity extends AppCompatActivity {
                         if (bytesRead == -1 || new String(buffer, 0, bytesRead).contains("EOF")) {
                             break;
                         }
+
+                        // Tracking the progress
+                        totalBytesRead += bytesRead;
+
+                        final int progress = (int) ((totalBytesRead * 100)/fileSize);
+                        runOnUiThread(()->{
+                            progressText.setText("Receiving Doc: "+progress+"%");
+                        });
+
                         Log.d("Manage Connected Socket", "Reading bytes: " + bytesRead);
 
                     }
@@ -241,6 +264,7 @@ public class HCECardActivity extends AppCompatActivity {
                     outputStream.write("ready".getBytes());
 
                     Log.d("inside ManageConnectedSocket", "Sent ready signal");
+                    progressText.setText("Document Received");
 
                     runOnUiThread(() -> Toast.makeText(HCECardActivity.this, "File received", Toast.LENGTH_SHORT).show());
                 } catch (Exception e) {
