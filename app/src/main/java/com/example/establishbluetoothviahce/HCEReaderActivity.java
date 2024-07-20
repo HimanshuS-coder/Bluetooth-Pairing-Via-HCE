@@ -10,12 +10,20 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.IsoDep;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -48,6 +56,9 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
     private StoragePermission storagePermission;
     BroadcastReceiver receiver;
     private ActivityResultLauncher<Intent> discoverableIntentLauncher;
+    private static final int REQUEST_CODE_PICK_PDF = 5;
+    private ActivityResultLauncher<Intent> pickPdfLauncher;
+    private String pdfPath;
 
     @SuppressLint("MissingPermission")
     @Override
@@ -55,6 +66,14 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_hcereader);
+
+        Button chooseDocument = findViewById(R.id.buttonView);
+        TextView textView = findViewById(R.id.textView);
+
+        // On button clicked
+        chooseDocument.setOnClickListener(v -> {
+            pickPdf();
+        });
 
         // Manage NFC
         NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
@@ -76,7 +95,7 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         // Manage Storage Permissions
         storagePermission = new StoragePermission(getApplicationContext(),this);
 
-        // Make this device discoverable (using Activity Result API)
+        // Intent to make this device discoverable (using Activity Result API)
         discoverableIntentLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
@@ -90,7 +109,84 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                 }
         );
 
+        // Intent to launch media picker
+        pickPdfLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK) {
+                        Intent data = result.getData();
+                        if (data != null) {
+                            Uri uri = data.getData();
+                            if (uri != null) {
+                                pdfPath = getPathFromUri(this,uri);
+                                textView.setText("Doc Path: "+pdfPath);
+                                Log.d("MainActivity", "Selected PDF Path: " + pdfPath);
+                                Toast.makeText(this, "Selected PDF Path: " + pdfPath, Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+                }
+        );
+
     }
+
+    private void pickPdf() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/pdf");
+        pickPdfLauncher.launch(intent);
+    }
+
+    private String getPathFromUri(Context context, Uri uri) {
+        String path = null;
+
+        // Check if the URI is a content URI
+        if ("content".equalsIgnoreCase(uri.getScheme())) {
+            if (DocumentsContract.isDocumentUri(context, uri)) {
+                // Handle document URIs
+                String documentId = DocumentsContract.getDocumentId(uri);
+                if (documentId.startsWith("raw:")) {
+                    path = documentId.replaceFirst("raw:", "");
+                } else {
+                    String[] split = documentId.split(":");
+                    String type = split[0];
+                    if ("primary".equalsIgnoreCase(type)) {
+                        // Primary storage
+                        path = Environment.getExternalStorageDirectory() + "/" + split[1];
+                    } else {
+                        // Handle other types if necessary
+                        path = getFilePathFromContentUri(context, uri);
+                    }
+                }
+            } else {
+                // For other content URIs
+                path = getFilePathFromContentUri(context, uri);
+            }
+        } else if ("file".equalsIgnoreCase(uri.getScheme())) {
+            // Direct file URI
+            path = uri.getPath();
+        }
+
+        return path;
+    }
+
+    private String getFilePathFromContentUri(Context context, Uri uri) {
+        String[] projection = {MediaStore.Files.FileColumns.DATA};
+        Cursor cursor = context.getContentResolver().query(uri, projection, null, null, null);
+        if (cursor != null) {
+            try {
+                int columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA);
+                if (cursor.moveToFirst()) {
+                    return cursor.getString(columnIndex);
+                }
+            } finally {
+                cursor.close();
+            }
+        }
+        return null;
+    }
+
+
 
     private void pairDevice(String deviceName) {
 
@@ -267,7 +363,7 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                     outputStream = socket.getOutputStream();
                     inputStream = socket.getInputStream();
 
-                    File file = new File("/storage/emulated/0/Download/dummy.pdf");
+                    File file = new File(pdfPath);
 
                     if (!file.exists()) {
                         Log.e(TAG, "File does not exist: " + file.getAbsolutePath());
