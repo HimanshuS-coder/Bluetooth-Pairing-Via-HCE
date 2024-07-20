@@ -42,6 +42,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -59,6 +60,10 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
     private static final int REQUEST_CODE_PICK_PDF = 5;
     private ActivityResultLauncher<Intent> pickPdfLauncher;
     private String pdfPath;
+    private BluetoothDevice foundDevice;
+    private boolean isReadyToSend = false;
+    private Button sendButton;
+
 
     @SuppressLint("MissingPermission")
     @Override
@@ -67,13 +72,27 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_hcereader);
 
+        // Fetching Chooser Button
         Button chooseDocument = findViewById(R.id.buttonView);
         TextView textView = findViewById(R.id.textView);
 
-        // On button clicked
+        // Fetching Send Button
+        sendButton = findViewById(R.id.sendButton);
+
+        // On Chooser button clicked
         chooseDocument.setOnClickListener(v -> {
             pickPdf();
         });
+
+        // On Send Button clicked
+        sendButton.setOnClickListener(view -> {
+            if (isReadyToSend && pdfPath != null) {
+                connectToBluetoothDevice(foundDevice); // Use the foundDevice stored in pairDevice
+            } else {
+                Toast.makeText(this, "Not ready to send yet or no file selected", Toast.LENGTH_SHORT).show();
+            }
+        });
+
 
         // Manage NFC
         NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
@@ -211,7 +230,13 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                             Log.d("Discover Bluetooth Device", discoverDeviceName);
                             if (discoverDeviceName.equals(deviceName)) {
                                 Log.d("inside Broadcast", "going to pairDevice");
-                                connectToBluetoothDevice(device);
+                                // connectToBluetoothDevice(device);
+
+                                // Alternate Code in order to send document when the send button is clicked
+                                foundDevice = device; // Store the discovered device
+                                isReadyToSend = true;
+                                Log.d("inside Broadcast", "Device paired and ready to send.");
+                                runOnUiThread(() -> sendButton.setEnabled(true)); // Enable the send button
                             }
                         } else {
                             Log.d("Discover Bluetooth Device", "Unnamed device found");
@@ -404,9 +429,26 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                         Log.d("ManageConnectedSocket HCE Reader", "Closing streams and socket");
                         if (fileInputStream != null) fileInputStream.close();
                         if (outputStream != null) outputStream.close();
+
+                        if(foundDevice != null) {
+                            Method removeBondMethod = foundDevice.getClass().getMethod("removeBond");
+                            boolean result = (boolean) removeBondMethod.invoke(foundDevice);
+                            if (result) {
+                                Log.d(TAG, "Successfully unpaired device");
+                                runOnUiThread(() -> Toast.makeText(HCEReaderActivity.this, "Unpaired", Toast.LENGTH_SHORT).show());
+                            } else {
+                                Log.e(TAG, "Failed to unpair device");
+                            }
+                        }
                         //if (socket != null) socket.close();
                     } catch (IOException e) {
                         e.printStackTrace();
+                    } catch (InvocationTargetException e) {
+                        throw new RuntimeException(e);
+                    } catch (NoSuchMethodException e) {
+                        throw new RuntimeException(e);
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
                     }
                 }
             });

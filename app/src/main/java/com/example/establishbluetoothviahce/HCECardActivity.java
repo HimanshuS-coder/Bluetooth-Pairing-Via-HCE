@@ -29,6 +29,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.util.UUID;
 
 public class HCECardActivity extends AppCompatActivity {
@@ -209,7 +210,8 @@ public class HCECardActivity extends AppCompatActivity {
                     File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
 
                     // Create a unique file name to avoid conflicts
-                    String fileName = "received_document_" + System.currentTimeMillis() + ".pdf";
+//                    String fileName = "received_document_" + System.currentTimeMillis() + ".pdf";
+                    String fileName = "received_document_.pdf";
                     File file = new File(downloadsDir, fileName);
 
 //                    File file = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "received_document.pdf");
@@ -249,7 +251,35 @@ public class HCECardActivity extends AppCompatActivity {
                         if (inputStream != null) inputStream.close();
                         if (fileOutputStream != null) fileOutputStream.close();
                         if (outputStream != null) outputStream.close();
+
+                        // Unpair using reflection (with null check)
+                        if (socket != null && socket.getRemoteDevice() != null) {
+                            try {
+                                Method removeBondMethod = socket.getRemoteDevice().getClass().getMethod("removeBond");
+
+                                boolean result = false;
+                                Object returnValue = removeBondMethod.invoke(socket.getRemoteDevice());
+                                if (returnValue instanceof Boolean) {
+                                    result = (Boolean) returnValue;
+                                }
+
+                                if (result) {
+                                    Log.d(TAG, "Successfully unpaired device from receiver");
+                                    runOnUiThread(() -> Toast.makeText(HCECardActivity.this, "Unpaired", Toast.LENGTH_SHORT).show());
+                                } else {
+                                    Log.e(TAG, "Failed to unpair device from receiver");
+                                }
+                            } catch (NoSuchMethodException e) {
+                                Log.e(TAG, "Method removeBond not found (receiver)", e);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error occurred while unpairing (receiver)", e);
+                            }
+                        } else {
+                            Log.e(TAG, "Cannot unpair: socket or remote device is null (receiver)");
+                        }
+
                         if (socket != null) socket.close();
+
                         Log.d("Finally Block", "Closed all streams and socket");
                     } catch (IOException e) {
                         e.printStackTrace();
