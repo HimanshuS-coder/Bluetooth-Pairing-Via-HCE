@@ -264,9 +264,11 @@ public class HCECardActivity extends AppCompatActivity {
                     outputStream.write("ready".getBytes());
 
                     Log.d("inside ManageConnectedSocket", "Sent ready signal");
-                    progressText.setText("Document Received");
 
-                    runOnUiThread(() -> Toast.makeText(HCECardActivity.this, "File received", Toast.LENGTH_SHORT).show());
+                    runOnUiThread(() -> {
+                        progressText.setText("Document Received");
+                        Toast.makeText(HCECardActivity.this, "File received", Toast.LENGTH_SHORT).show();
+                    });
                 } catch (Exception e) {
                     Log.e(TAG, "Error occurred when managing the connected socket", e);
                 } finally {
