@@ -15,8 +15,8 @@ import androidx.core.app.ActivityCompat;
 
 public class BluetoothPermission {
 
-    private static final int REQUEST_ENABLE_BT = 1;
-    private static final int REQUEST_PERMISSIONS = 2;
+    public static final int REQUEST_ENABLE_BT = 1;
+    public static final int REQUEST_PERMISSIONS = 2;
     private Activity activity;
     private BluetoothAdapter bluetoothAdapter;
 
@@ -76,10 +76,12 @@ public class BluetoothPermission {
 
     @SuppressLint("MissingPermission")
     private void requestBluetoothEnable() {
+        // Will call onActivityResult method
         Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
         activity.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
     }
 
+    // This method will run during any permission request
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == REQUEST_PERMISSIONS) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -92,6 +94,7 @@ public class BluetoothPermission {
         }
     }
 
+    // This method will run when user either grant or reject the intent
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_ENABLE_BT) {
             if (resultCode == Activity.RESULT_OK) {

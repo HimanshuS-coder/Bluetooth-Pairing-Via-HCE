@@ -56,7 +56,6 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_hcereader);
 
-
         // Manage NFC
         NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
         if (!NFC_Utils.isNfcEnabled(adapter,this)) {
@@ -76,7 +75,6 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
 
         // Manage Storage Permissions
         storagePermission = new StoragePermission(getApplicationContext(),this);
-        storagePermission.isStoragePermissionGranted();
 
         // Make this device discoverable (using Activity Result API)
         discoverableIntentLauncher = registerForActivityResult(
@@ -111,13 +109,6 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                     Log.d("inside Broadcast","inside if");
                     BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                     Log.d("inside Broadcast","receive device");
-//                    assert device != null;
-//                    Log.d("Discover Bluetooth Device",device.getName());
-//                    if (device.getName().equals(deviceName)) {
-//                        // bluetoothAdapter.cancelDiscovery();
-//                        Log.d("inside Broadcast","going to pairDevice");
-//                        connectToBluetoothDevice(device);
-//                    }
                     if (device != null) {
                         String discoverDeviceName = device.getName();
                         if (discoverDeviceName != null) {
@@ -138,10 +129,7 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         // These lines should be placed below BroadCast Receiver so that after discovering first device it again run these lines and after discover more devices
         // Start device discovery
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-        Log.d("Start Intent for Bluetooth","Bluetooth discovery about to start");
         registerReceiver(receiver, filter);
-        Log.d("Start Intent for Bluetooth","Register receiver");
-
 
     }
 
@@ -179,12 +167,9 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
 
                 if (Arrays.equals(responseApdu,Utils.SELECT_OK_SW)){
                     responseApdu = isoDep.transceive(Utils.BLUETOOTH_REQUEST);
-
                 }
                 String deviceName = new String(responseApdu, StandardCharsets.UTF_8);
-                Log.d("Device Name received",deviceName);
                 pairDevice(deviceName);
-
 
             } catch (Exception e) {
                 Log.e(TAG, "Error communicating with HCE device", e);
@@ -196,23 +181,34 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        bluetoothPermission.onActivityResult(requestCode, resultCode, data);
-        storagePermission.onActivityResult(requestCode,resultCode,data);
+        if (requestCode == BluetoothPermission.REQUEST_ENABLE_BT) { // Specific to Bluetooth
+            bluetoothPermission.onActivityResult(requestCode, resultCode, data);
+
+            if (resultCode == Activity.RESULT_OK) {
+                // Bluetooth is enabled, Now ask for storage permissions
+                storagePermission.isStoragePermissionGranted();
+            }
+
+        } else if (requestCode == StoragePermission.REQUEST_CODE_STORAGE_PERMISSION) { // Specific to Storage
+            storagePermission.onActivityResult(requestCode, resultCode, data);
+        }
+
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        bluetoothPermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        storagePermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == BluetoothPermission.REQUEST_PERMISSIONS) { // Handle Bluetooth permission result
+            bluetoothPermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        } else if (requestCode == StoragePermission.REQUEST_CODE_STORAGE_PERMISSION) { // Handle storage permission result
+            storagePermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 
 
     private void connectToBluetoothDevice(BluetoothDevice device) {
-//        Log.d("inside connect To Bluetooth",address);
-//        device = bluetoothAdapter.getRemoteDevice(address);
-//        Log.d("inside connect To Bluetooth","going to connect thread");
-//        new ConnectThread(device).start();
         if (device != null) {
             ConnectThread connectThread = new ConnectThread(device);
             connectThread.start();
@@ -245,13 +241,9 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                 Log.d("INSIDE IF BLOCK TO CHECK PERMISSIONS","Will call check bluetooth method");
                 // checkBluetoothPermissions();
             }
-            Log.d("inside run","going to cancel discovery");
             bluetoothAdapter.cancelDiscovery();
-            Log.d("inside run","canceled discovery");
             try {
-                Log.d("inside run","going to connect socket");
                 socket.connect();
-                Log.d("inside run","socket connected");
                 manageConnectedSocketHCE_Reader(socket);
             } catch (Exception e) {
                 Log.e(TAG, "Unable to connect; closing the socket", e);
@@ -271,16 +263,11 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                 FileInputStream fileInputStream = null;
                 InputStream inputStream = null;
                 try {
-                    Log.d("Manage Connected SOcket","inside try block");
 
                     outputStream = socket.getOutputStream();
                     inputStream = socket.getInputStream();
 
-                    Log.d("Manage Connected SOcket","got socket outputstream");
-
                     File file = new File("/storage/emulated/0/Download/dummy.pdf");
-
-                    Log.d("Manage Connected SOcket","select file");
 
                     if (!file.exists()) {
                         Log.e(TAG, "File does not exist: " + file.getAbsolutePath());
@@ -291,12 +278,8 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
 
                     fileInputStream = new FileInputStream(file);
 
-                    Log.d("Manage Connected SOcket","file input stream");
-
                     byte[] buffer = new byte[1024*2];
                     int bytesRead;
-
-                    Log.d("Manage Connected SOcket","going to write bytes");
 
                     while ((bytesRead = fileInputStream.read(buffer)) != -1) {
                         Log.d("Manage Connected Socket", "Writing bytes: " + bytesRead);
@@ -309,9 +292,7 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
 
                     // Wait for "ready" signal
                     byte[] readyBuffer = new byte[5];
-                    Log.d("inside ManageConnectedSocket", "going to wait for ready signal");
                     int readyBytes = inputStream.read(readyBuffer); // Wait for "ready" from HCE Card
-                    Log.d("inside ManageConnectedSocket", "ready signal received");
                     String readySignal = new String(readyBuffer, 0, readyBytes);
                     if ("ready".equals(readySignal)) {
                         Log.d("ManageConnectedSocket HCE Reader", "Received 'ready' signal");
@@ -319,11 +300,6 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                     } else {
                         Log.d("ManageConnectedSocket HCE Reader", "Didn't receive 'ready' signal: " + readySignal); // If no "ready" is received
                     }
-
-
-
-                    Log.d("inside manageConnectedSocket","loaded the pdf to output Stream");
-
 
                 } catch (Exception e) {
                     Log.e(TAG, "Error occurred when managing the connected socket", e);

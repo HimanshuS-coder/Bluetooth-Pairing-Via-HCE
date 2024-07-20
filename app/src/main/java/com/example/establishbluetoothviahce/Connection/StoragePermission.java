@@ -16,11 +16,13 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.establishbluetoothviahce.HCECardActivity;
+
 public class StoragePermission {
 
     Context context;
     Activity activity;
-    private static final int REQUEST_CODE_STORAGE_PERMISSION = 100;
+    public static final int REQUEST_CODE_STORAGE_PERMISSION = 100;
 
     public StoragePermission(Context context, Activity activity){
         this.context = context;
@@ -81,10 +83,8 @@ public class StoragePermission {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
             if (resultCode == Activity.RESULT_OK) {
-                // Bluetooth is enabled
                 Toast.makeText(activity, "Storage Permission Granted on Android 11 +", Toast.LENGTH_SHORT).show();
             } else {
-                // User did not enable Bluetooth or an error occurred
                 Toast.makeText(activity, "Storage Permission Required, Retrying on Android 11 +", Toast.LENGTH_SHORT).show();
                 isStoragePermissionGranted();
             }

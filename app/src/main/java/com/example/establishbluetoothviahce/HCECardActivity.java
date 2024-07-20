@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.nfc.NfcAdapter;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -36,12 +37,11 @@ public class HCECardActivity extends AppCompatActivity {
     private static final String APP_NAME = "HCEBluetooth";
     private static final UUID MY_UUID = UUID.fromString("e8e10f95-1a70-4b27-9ccf-02010264e9c8");
 
-    private static final int REQUEST_ENABLE_BT = 1;
-    private static final int REQUEST_PERMISSIONS = 2;
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothPermission bluetoothPermission;
     private StoragePermission storagePermission;
     private AcceptThread acceptThread;
+    private ActivityResultLauncher<Intent> discoverableIntentLauncher;
 
 
     @SuppressLint("MissingPermission")
@@ -66,10 +66,9 @@ public class HCECardActivity extends AppCompatActivity {
 
         // Manage Storage Permissions
         storagePermission = new StoragePermission(getApplicationContext(), this);
-        storagePermission.isStoragePermissionGranted();
 
         // Make this device discoverable (using Activity Result API)
-        ActivityResultLauncher<Intent> discoverableIntentLauncher = registerForActivityResult(
+        discoverableIntentLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == Activity.RESULT_CANCELED) {
@@ -81,70 +80,69 @@ public class HCECardActivity extends AppCompatActivity {
                 }
         );
 
-        Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
-        discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
-
 
         acceptThread = new AcceptThread();
         acceptThread.start();
     }
 
+    public void makeDiscoverable(){
+        // This method will be called by StoragePermission class only when the storage permissions are already granted
+        // Lines to make the bluetooth discoverable
+        Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
+        discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        bluetoothPermission.onActivityResult(requestCode, resultCode, data);
-        storagePermission.onActivityResult(requestCode,resultCode,data);
+        if (requestCode == BluetoothPermission.REQUEST_ENABLE_BT) { // Specific to Bluetooth
+            Log.d("activity result","request bluetooth enable");
+            bluetoothPermission.onActivityResult(requestCode, resultCode, data);
+            Log.d("activity result","request bluetooth enable after");
+
+            makeDiscoverable();
+
+            if (resultCode == Activity.RESULT_OK) {
+                // Bluetooth is enabled, Now ask for storage permissions
+                Log.d("Bluetooth permission granted","going for storage permission");
+                storagePermission.isStoragePermissionGranted();
+            }
+
+        } else if (requestCode == StoragePermission.REQUEST_CODE_STORAGE_PERMISSION) { // Specific to Storage
+            storagePermission.onActivityResult(requestCode, resultCode, data);
+
+            if (resultCode == Activity.RESULT_OK) {
+                // Permission granted for storage , now make the device discoverable
+                Log.d("Storage permission oncreate","Permission granted , making the device discoverable");
+                // Lines to make the bluetooth discoverable
+                Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
+                discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
+            }
+        }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        bluetoothPermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        storagePermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == BluetoothPermission.REQUEST_PERMISSIONS) { // Handle Bluetooth permission result
+            bluetoothPermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        } else if (requestCode == StoragePermission.REQUEST_CODE_STORAGE_PERMISSION) { // Handle storage permission result
+            Log.d("Storage permission","Going for storage permission");
+            storagePermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+           // After permission granted for storage make the device in discoverable mode
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
+                discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
+            }
+
+        }
     }
 
-//    private void checkBluetoothPermissions() {
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-//            if (checkSelfPermission(android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
-//                    checkSelfPermission(android.Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED ||
-//                    checkSelfPermission(android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
-//                    checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-//
-//                requestPermissions(new String[]{
-//                        android.Manifest.permission.BLUETOOTH,
-//                        android.Manifest.permission.BLUETOOTH_SCAN,
-//                        android.Manifest.permission.BLUETOOTH_ADMIN,
-//                        android.Manifest.permission.BLUETOOTH_CONNECT
-//                }, REQUEST_PERMISSIONS);
-//            }else{
-//                Log.d("inside check bluetooth permission","ANDROID S +");
-//            }
-//        } else{
-//            if (checkSelfPermission(android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
-//                    checkSelfPermission(android.Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-//
-//                requestPermissions(new String[]{
-//                        android.Manifest.permission.BLUETOOTH,
-//                        Manifest.permission.BLUETOOTH_ADMIN
-//                }, REQUEST_PERMISSIONS);
-//            }else{
-//                Log.d("inside check bluetooth permission","ANDROID S -");
-//            }
-//        }
-//    }
-//
-//    @Override
-//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-//        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-//        if (requestCode == REQUEST_PERMISSIONS) {
-//            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-//                Log.d("Permission Granted","Permission Granted");
-//            } else {
-//                Toast.makeText(this, "Bluetooth permissions are required", Toast.LENGTH_SHORT).show();
-//            }
-//        }
-//    }
 
     private class AcceptThread extends Thread {
         private final BluetoothServerSocket serverSocket;
@@ -153,22 +151,9 @@ public class HCECardActivity extends AppCompatActivity {
         public AcceptThread() {
             BluetoothServerSocket tmp = null;
             try {
-//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-//                    if (checkSelfPermission(android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
-//                            checkSelfPermission(android.Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED ||
-//                            checkSelfPermission(android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
-//                            checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-//                        checkBluetoothPermissions();
-//                    }
-//                } else{
-//                    if (checkSelfPermission(android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED ||
-//                            checkSelfPermission(android.Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-//                        checkBluetoothPermissions();
-//                    }
-//                }
-                Log.d("inside Accept Thread","trying to receive something");
+
                 tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord(APP_NAME, MY_UUID);
-                Log.d("inside Accept Thread","received something in tmp");
+
             } catch (Exception e) {
                 Log.e(TAG, "Socket's listen() method failed", e);
             }
