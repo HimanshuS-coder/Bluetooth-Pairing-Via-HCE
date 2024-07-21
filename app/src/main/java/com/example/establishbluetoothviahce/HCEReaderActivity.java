@@ -23,6 +23,7 @@ import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -64,6 +65,8 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
     private BluetoothDevice foundDevice;
     private boolean isReadyToSend = false;
     private Button sendButton;
+    private ProgressBar progressBar;
+    private TextView progressText;
 
 
     @SuppressLint("MissingPermission")
@@ -76,6 +79,8 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         // Fetching Chooser Button
         Button chooseDocument = findViewById(R.id.buttonView);
         TextView textView = findViewById(R.id.textView);
+        progressText = findViewById(R.id.progressText);
+        progressBar = findViewById(R.id.progressBar);
 
         // Fetching Send Button
         sendButton = findViewById(R.id.sendButton);
@@ -88,6 +93,8 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         // On Send Button clicked
         sendButton.setOnClickListener(view -> {
             if (isReadyToSend && pdfPath != null) {
+                progressBar.setVisibility(View.VISIBLE);
+                progressText.setText("Sending Document..");
                 connectToBluetoothDevice(foundDevice); // Use the foundDevice stored in pairDevice
             } else {
                 Toast.makeText(this, "Not ready to send yet or no file selected", Toast.LENGTH_SHORT).show();
@@ -215,11 +222,25 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
         discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
         discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
 
+        runOnUiThread(()->{
+            // Make progressBar visible with text
+            progressBar.setVisibility(View.VISIBLE);
+            progressText.setVisibility(View.VISIBLE);
+            progressText.setText("Started Pairing Process");
+        });
+
+
         // Create a BroadcastReceiver for ACTION_FOUND
         receiver = new BroadcastReceiver() {
             @SuppressLint("MissingPermission")
             public void onReceive(Context context, Intent intent) {
                 Log.d("inside Broadcast","started onReceive method");
+
+                runOnUiThread(()->{
+                    // Update ProgressText
+                    progressText.setText("Fetching Nearby Devices..");
+                });
+
                 String action = intent.getAction();
                 if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                     Log.d("inside Broadcast","inside if");
@@ -233,11 +254,16 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                                 Log.d("inside Broadcast", "going to pairDevice");
                                 // connectToBluetoothDevice(device);
 
-                                // Alternate Code in order to send document when the send button is clicked
                                 foundDevice = device; // Store the discovered device
                                 isReadyToSend = true;
                                 Log.d("inside Broadcast", "Device paired and ready to send.");
-                                runOnUiThread(() -> sendButton.setEnabled(true)); // Enable the send button
+                                runOnUiThread(() ->{
+                                    // Alternate Code in order to send document when the send button is clicked
+                                    progressText.setText("Remote Device Found and Paired Up :)");
+                                    progressBar.setVisibility(View.INVISIBLE);
+                                    Toast.makeText(HCEReaderActivity.this,"Device is Ready to Send the Document",Toast.LENGTH_SHORT).show();
+                                    sendButton.setEnabled(true);
+                                } ); // Enable the send button
                             }
                         } else {
                             Log.d("Discover Bluetooth Device", "Unnamed device found");
@@ -424,7 +450,11 @@ public class HCEReaderActivity extends AppCompatActivity implements NfcAdapter.R
                     String readySignal = new String(readyBuffer, 0, readyBytes);
                     if ("ready".equals(readySignal)) {
                         Log.d("ManageConnectedSocket HCE Reader", "Received 'ready' signal");
-                        runOnUiThread(() -> Toast.makeText(HCEReaderActivity.this, "File sent and acknowledged", Toast.LENGTH_SHORT).show());
+                        runOnUiThread(() ->{
+                            progressBar.setVisibility(View.GONE);
+                            progressText.setText("Document Sent :)");
+                            Toast.makeText(HCEReaderActivity.this, "File sent and acknowledged", Toast.LENGTH_SHORT).show();
+                        } );
                     } else {
                         Log.d("ManageConnectedSocket HCE Reader", "Didn't receive 'ready' signal: " + readySignal); // If no "ready" is received
                     }

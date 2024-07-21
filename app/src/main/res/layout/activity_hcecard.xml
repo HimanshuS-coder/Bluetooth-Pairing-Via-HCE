@@ -13,9 +13,21 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginTop="220dp"
         android:text="Document Yet to be received"
         android:textSize="20dp"
         android:id="@+id/progressText"/>
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/progressText"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginTop="100dp"
+        android:text="Open Document"
+        android:enabled="false"
+        android:id="@+id/openDoc"
+        android:padding="30dp"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

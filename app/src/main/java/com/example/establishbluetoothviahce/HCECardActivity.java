@@ -7,11 +7,13 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,6 +22,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 
 import com.example.establishbluetoothviahce.Connection.BluetoothPermission;
 import com.example.establishbluetoothviahce.Connection.NFC_Utils;
@@ -48,6 +51,9 @@ public class HCECardActivity extends AppCompatActivity {
     private AcceptThread acceptThread;
     private ActivityResultLauncher<Intent> discoverableIntentLauncher;
     TextView progressText;
+    Boolean isReceived = false;
+    Button openDoc;
+    String pathToReceivedFile;
 
 
     @SuppressLint("MissingPermission")
@@ -59,6 +65,25 @@ public class HCECardActivity extends AppCompatActivity {
 
         // Fetching Progress Text
         progressText = findViewById(R.id.progressText);
+
+        // Fetching Open Document button
+        openDoc = findViewById(R.id.openDoc);
+
+        // Click listener to open the received document
+        openDoc.setOnClickListener(view -> {
+            if(isReceived && pathToReceivedFile!=null){
+                File file = new File(pathToReceivedFile);
+
+                Uri contentUri = FileProvider.getUriForFile(this,  "com.example.establishbluetoothviahce.provider", file);
+
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(contentUri, "application/pdf");
+                intent.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY | Intent.FLAG_GRANT_READ_URI_PERMISSION);  // Add this flag
+                startActivity(intent);
+            }else {
+                Toast.makeText(this, "No path to the file received", Toast.LENGTH_SHORT).show();
+            }
+        });
 
         // Manage NFC
         NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
@@ -219,15 +244,19 @@ public class HCECardActivity extends AppCompatActivity {
 
                     // Create a unique file name to avoid conflicts
 //                    String fileName = "received_document_" + System.currentTimeMillis() + ".pdf";
-                    String fileName = "received_document_.pdf";
+                    String fileName = "received_document.pdf";
                     File file = new File(downloadsDir, fileName);
+
+                    // Fetching the absolute path of the file received to use it later for opening it.
+                    pathToReceivedFile = file.getAbsolutePath();
+                    Log.d("File Path", pathToReceivedFile); // Log the path for debugging
 
 //                    File file = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "received_document.pdf");
                     fileOutputStream = new FileOutputStream(file);
 
                     Log.d("inside ManageConnectedSocket","Saving the file");
 
-                    byte[] buffer = new byte[1024*64];
+                    byte[] buffer = new byte[1024*2];
                     int bytesRead;
 
                     // Tracking the Progress
@@ -266,8 +295,10 @@ public class HCECardActivity extends AppCompatActivity {
                     Log.d("inside ManageConnectedSocket", "Sent ready signal");
 
                     runOnUiThread(() -> {
+                        isReceived = true;
+                        openDoc.setEnabled(true);
                         progressText.setText("Document Received");
-                        Toast.makeText(HCECardActivity.this, "File received", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(HCECardActivity.this, "File received in Downloads Folder", Toast.LENGTH_LONG).show();
                     });
                 } catch (Exception e) {
                     Log.e(TAG, "Error occurred when managing the connected socket", e);
@@ -278,7 +309,7 @@ public class HCECardActivity extends AppCompatActivity {
                         if (fileOutputStream != null) fileOutputStream.close();
                         if (outputStream != null) outputStream.close();
 
-                        // Unpair using reflection (with null check)
+                        // Unpair using reflection
                         if (socket != null && socket.getRemoteDevice() != null) {
                             try {
                                 Method removeBondMethod = socket.getRemoteDevice().getClass().getMethod("removeBond");
@@ -291,7 +322,11 @@ public class HCECardActivity extends AppCompatActivity {
 
                                 if (result) {
                                     Log.d(TAG, "Successfully unpaired device from receiver");
-                                    runOnUiThread(() -> Toast.makeText(HCECardActivity.this, "Unpaired", Toast.LENGTH_SHORT).show());
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(HCECardActivity.this, "Unpaired", Toast.LENGTH_SHORT).show();
+
+
+                                    });
                                 } else {
                                     Log.e(TAG, "Failed to unpair device from receiver");
                                 }
