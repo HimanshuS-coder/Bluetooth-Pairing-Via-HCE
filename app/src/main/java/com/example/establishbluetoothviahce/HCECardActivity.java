@@ -63,11 +63,15 @@ public class HCECardActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_hcecard);
 
+        Log.d(TAG,"On create Method starting");
+
         // Fetching Progress Text
         progressText = findViewById(R.id.progressText);
 
         // Fetching Open Document button
         openDoc = findViewById(R.id.openDoc);
+
+        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         // Click listener to open the received document
         openDoc.setOnClickListener(view -> {
@@ -85,22 +89,6 @@ public class HCECardActivity extends AppCompatActivity {
             }
         });
 
-        // Manage NFC
-        NfcAdapter adapter = NfcAdapter.getDefaultAdapter(this);
-        if (!NFC_Utils.isNfcEnabled(adapter,this)) {
-            NFC_Utils.promptEnableNFC(this);
-        }
-
-        // Manage Bluetooth permissions
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        bluetoothPermission = new BluetoothPermission(bluetoothAdapter,this);
-        bluetoothPermission.enableBluetooth();
-        Log.d("Bluetooth address of Card ", bluetoothAdapter.getName());
-        //checkBluetoothPermissions();
-
-        // Manage Storage Permissions
-        storagePermission = new StoragePermission(getApplicationContext(), this);
-
         // Make this device discoverable (using Activity Result API)
         discoverableIntentLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -113,6 +101,10 @@ public class HCECardActivity extends AppCompatActivity {
                     }
                 }
         );
+
+        Log.d(TAG,"before calling discoverable method");
+        makeDiscoverable();
+        Log.d(TAG,"after calling discoverable method");
 
 
         acceptThread = new AcceptThread();
@@ -127,56 +119,55 @@ public class HCECardActivity extends AppCompatActivity {
         discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == BluetoothPermission.REQUEST_ENABLE_BT) { // Specific to Bluetooth
-            Log.d("activity result","request bluetooth enable");
-            bluetoothPermission.onActivityResult(requestCode, resultCode, data);
-            Log.d("activity result","request bluetooth enable after");
-
-            makeDiscoverable();
-
-            if (resultCode == Activity.RESULT_OK) {
-                // Bluetooth is enabled, Now ask for storage permissions
-                Log.d("Bluetooth permission granted","going for storage permission");
-                storagePermission.isStoragePermissionGranted();
-            }
-
-        } else if (requestCode == StoragePermission.REQUEST_CODE_STORAGE_PERMISSION) { // Specific to Storage
-            storagePermission.onActivityResult(requestCode, resultCode, data);
-
-            if (resultCode == Activity.RESULT_OK) {
-                // Permission granted for storage , now make the device discoverable
-                Log.d("Storage permission oncreate","Permission granted , making the device discoverable");
-                // Lines to make the bluetooth discoverable
-                Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
-                discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
-            }
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == BluetoothPermission.REQUEST_PERMISSIONS) { // Handle Bluetooth permission result
-            bluetoothPermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        } else if (requestCode == StoragePermission.REQUEST_CODE_STORAGE_PERMISSION) { // Handle storage permission result
-            Log.d("Storage permission","Going for storage permission");
-            storagePermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-           // After permission granted for storage make the device in discoverable mode
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
-                discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
-            }
-
-        }
-    }
-
+//    @Override
+//    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+//        super.onActivityResult(requestCode, resultCode, data);
+//        if (requestCode == BluetoothPermission.REQUEST_ENABLE_BT) { // Specific to Bluetooth
+//            Log.d("activity result","request bluetooth enable");
+//            bluetoothPermission.onActivityResult(requestCode, resultCode, data);
+//            Log.d("activity result","request bluetooth enable after");
+//
+//            makeDiscoverable();
+//
+//            if (resultCode == Activity.RESULT_OK) {
+//                // Bluetooth is enabled, Now ask for storage permissions
+//                Log.d("Bluetooth permission granted","going for storage permission");
+//                storagePermission.isStoragePermissionGranted();
+//            }
+//
+//        } else if (requestCode == StoragePermission.REQUEST_CODE_STORAGE_PERMISSION) { // Specific to Storage
+//            storagePermission.onActivityResult(requestCode, resultCode, data);
+//
+//            if (resultCode == Activity.RESULT_OK) {
+//                // Permission granted for storage , now make the device discoverable
+//                Log.d("Storage permission oncreate","Permission granted , making the device discoverable");
+//                // Lines to make the bluetooth discoverable
+//                Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+//                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
+//                discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
+//            }
+//        }
+//    }
+//
+//    @Override
+//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+//        if (requestCode == BluetoothPermission.REQUEST_PERMISSIONS) { // Handle Bluetooth permission result
+//            bluetoothPermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
+//
+//        } else if (requestCode == StoragePermission.REQUEST_CODE_STORAGE_PERMISSION) { // Handle storage permission result
+//            Log.d("Storage permission","Going for storage permission");
+//            storagePermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
+//
+//           // After permission granted for storage make the device in discoverable mode
+//            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//                Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+//                discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 600); // 10 minutes
+//                discoverableIntentLauncher.launch(discoverableIntent);  // Launch using the launcher
+//            }
+//
+//        }
+//    }
 
     private class AcceptThread extends Thread {
         private final BluetoothServerSocket serverSocket;
@@ -256,7 +247,7 @@ public class HCECardActivity extends AppCompatActivity {
 
                     Log.d("inside ManageConnectedSocket","Saving the file");
 
-                    byte[] buffer = new byte[1024*2];
+                    byte[] buffer = new byte[1024];
                     int bytesRead;
 
                     // Tracking the Progress
@@ -291,13 +282,14 @@ public class HCECardActivity extends AppCompatActivity {
                     fileOutputStream.flush();
 
                     outputStream.write("ready".getBytes());
+                    outputStream.flush();
 
                     Log.d("inside ManageConnectedSocket", "Sent ready signal");
 
                     runOnUiThread(() -> {
                         isReceived = true;
                         openDoc.setEnabled(true);
-                        progressText.setText("Document Received");
+                        progressText.setText("Document Received in Downloads Folder");
                         Toast.makeText(HCECardActivity.this, "File received in Downloads Folder", Toast.LENGTH_LONG).show();
                     });
                 } catch (Exception e) {
@@ -324,8 +316,6 @@ public class HCECardActivity extends AppCompatActivity {
                                     Log.d(TAG, "Successfully unpaired device from receiver");
                                     runOnUiThread(() -> {
                                         Toast.makeText(HCECardActivity.this, "Unpaired", Toast.LENGTH_SHORT).show();
-
-
                                     });
                                 } else {
                                     Log.e(TAG, "Failed to unpair device from receiver");
@@ -339,7 +329,7 @@ public class HCECardActivity extends AppCompatActivity {
                             Log.e(TAG, "Cannot unpair: socket or remote device is null (receiver)");
                         }
 
-                        if (socket != null) socket.close();
+                        //if (socket != null) socket.close();
 
                         Log.d("Finally Block", "Closed all streams and socket");
                     } catch (IOException e) {

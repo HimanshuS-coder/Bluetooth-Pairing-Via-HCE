@@ -44,11 +44,14 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".HCEReaderActivity" android:exported="true">
+        <!-- Activities are not meant to be used as receivers -->
+        <!--
+        <receiver android:name=".BluetoothDeviceFoundReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.bluetooth.device.action.FOUND" />
             </intent-filter>
         </receiver>
+        -->
 
         <service
             android:name=".MyHostApduService"
