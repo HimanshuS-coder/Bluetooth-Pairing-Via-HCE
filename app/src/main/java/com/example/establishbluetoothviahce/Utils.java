@@ -1,5 +1,12 @@
 package com.example.establishbluetoothviahce;
 
+import android.content.Context;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Environment;
+import android.provider.DocumentsContract;
+import android.provider.MediaStore;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -95,6 +102,55 @@ public class Utils {
     public static byte[] sha256(String data) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return digest.digest(data.getBytes());
+    }
+
+    public static String getPathFromUri(Context context, Uri uri) {
+        String path = null;
+
+        // Check if the URI is a content URI
+        if ("content".equalsIgnoreCase(uri.getScheme())) {
+            if (DocumentsContract.isDocumentUri(context, uri)) {
+                // Handle document URIs
+                String documentId = DocumentsContract.getDocumentId(uri);
+                if (documentId.startsWith("raw:")) {
+                    path = documentId.replaceFirst("raw:", "");
+                } else {
+                    String[] split = documentId.split(":");
+                    String type = split[0];
+                    if ("primary".equalsIgnoreCase(type)) {
+                        // Primary storage
+                        path = Environment.getExternalStorageDirectory() + "/" + split[1];
+                    } else {
+                        // Handle other types if necessary
+                        path = getFilePathFromContentUri(context, uri);
+                    }
+                }
+            } else {
+                // For other content URIs
+                path = getFilePathFromContentUri(context, uri);
+            }
+        } else if ("file".equalsIgnoreCase(uri.getScheme())) {
+            // Direct file URI
+            path = uri.getPath();
+        }
+
+        return path;
+    }
+
+    private static String getFilePathFromContentUri(Context context, Uri uri) {
+        String[] projection = {MediaStore.Files.FileColumns.DATA};
+        Cursor cursor = context.getContentResolver().query(uri, projection, null, null, null);
+        if (cursor != null) {
+            try {
+                int columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA);
+                if (cursor.moveToFirst()) {
+                    return cursor.getString(columnIndex);
+                }
+            } finally {
+                cursor.close();
+            }
+        }
+        return null;
     }
 
 }
