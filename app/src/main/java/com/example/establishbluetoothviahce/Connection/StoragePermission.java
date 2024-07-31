@@ -16,8 +16,6 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.example.establishbluetoothviahce.HCECardActivity;
-
 public class StoragePermission {
 
     Context context;

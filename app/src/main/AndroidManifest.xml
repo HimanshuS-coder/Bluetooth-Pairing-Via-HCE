@@ -29,10 +29,10 @@
         android:theme="@style/Theme.EstablishBluetoothViaHCE"
         tools:targetApi="31">
         <activity
-            android:name=".HCEReaderActivity"
+            android:name=".HceCardActiviy"
             android:exported="false" />
         <activity
-            android:name=".HCECardActivity"
+            android:name=".HceReaderActivity"
             android:exported="false" />
         <activity
             android:name=".MainActivity"

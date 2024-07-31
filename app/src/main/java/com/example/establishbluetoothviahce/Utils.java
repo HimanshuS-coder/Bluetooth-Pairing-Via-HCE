@@ -31,7 +31,7 @@ public class Utils {
     // Reader will be sending the SIGNEE HELLO , here i am going to assign the 4th byte in the reader class
     public static final byte[] SEND_SIGNEE_HELLO = HexStringToByteArray("800100");
 
-    public static final byte[] BLUETOOTH_REQUEST = HexStringToByteArray("7002000000");
+    public static final byte[] SEND_BLUETOOTH_DEVICE_NAME = HexStringToByteArray("70020000");
 
     // "UNKNOWN" status word sent in response to invalid APDU command (0x0000)
     public static final byte[] UNKNOWN_CMD_SW = HexStringToByteArray("0000");

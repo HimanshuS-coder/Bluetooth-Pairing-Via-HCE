@@ -3,7 +3,6 @@ package com.example.establishbluetoothviahce;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,9 +12,6 @@ import android.widget.Button;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.example.establishbluetoothviahce.Connection.BluetoothPermission;
 import com.example.establishbluetoothviahce.Connection.NFC_Utils;
@@ -49,18 +45,18 @@ public class MainActivity extends AppCompatActivity {
 
         storagePermission = new StoragePermission(getApplicationContext(),this);
 
-        Signer.setOnClickListener(new View.OnClickListener() {
+        Signee.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, HCECardActivity.class);
+                Intent intent = new Intent(MainActivity.this, HceReaderActivity.class);
                 startActivity(intent);
             }
         });
 
-        Signee.setOnClickListener(new View.OnClickListener() {
+        Signer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, HCEReaderActivity.class);
+                Intent intent = new Intent(MainActivity.this, HceCardActiviy.class);
                 startActivity(intent);
             }
         });

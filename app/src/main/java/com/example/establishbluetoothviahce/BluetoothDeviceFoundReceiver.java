@@ -10,15 +10,15 @@ import android.util.Log;
 public class BluetoothDeviceFoundReceiver extends BroadcastReceiver {
     private static final String TAG = "BluetoothDeviceFoundReceiver";
 
-    private HCEReaderActivity hceReaderActivity;
+    private HceCardActiviy hceCardActiviy;
     private String targetDeviceName;
 
     // No-argument constructor
     public BluetoothDeviceFoundReceiver() {
     }
 
-    public void setHceReaderActivity(HCEReaderActivity activity) {
-        this.hceReaderActivity = activity;
+    public void setHceCardActiviy(HceCardActiviy activity) {
+        this.hceCardActiviy = activity;
     }
 
     public void setTargetDeviceName(String deviceName) {
@@ -38,8 +38,8 @@ public class BluetoothDeviceFoundReceiver extends BroadcastReceiver {
                 Log.d(TAG, "Discovered Device: " + deviceName);
                 if (deviceName.equals(targetDeviceName)) {
                     // Notify the activity that the device was found
-                    if (hceReaderActivity != null) {
-                        hceReaderActivity.onDeviceFound(device); // Fixed this line
+                    if (hceCardActiviy != null) {
+                        hceCardActiviy.onDeviceFound(device); // Fixed this line
                     }
                 }
             } else {
